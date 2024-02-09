@@ -1,4 +1,13 @@
-# R project 
+# venv
+venv
+
+# thirdparty
+thirdparty
+
+# results depository
+results
+
+# R project
 *.Rproj
 
 # History files
@@ -50,3 +59,6 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# Snakemake
+.snakemake
