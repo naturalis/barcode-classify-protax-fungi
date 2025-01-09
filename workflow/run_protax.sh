@@ -11,7 +11,7 @@ ITS=$2
 PERCENT=$3
 
 ODIR="$PWD/userdir" # Output data directory
-INSEQ=$ODIR/test.fasta #test data fasta file
+INSEQ=$ODIR/test_test.fasta #test data fasta file
 THRESHOLD=$PERCENT/100
 
 # Let User know if the query file is missing
@@ -30,7 +30,7 @@ fi
 # Locations for PROTAX and database files
 PROTAXDIR=$PWD                    # Directory Path that has files to run PROTAX (e.g. this one)
 PROTAX=$PROTAXDIR/protaxscripts   # Directory Path to PROTAX scripts
-MDIR="$PWD/db_files_TU-NHM"         # Directory Path to db_files, which has udb, taxonomy, rseqs, ref.tax and parameter files
+MDIR="$PWD/db_files_TU-NHM"       # Directory Path to db_files, which has udb, taxonomy, rseqs, ref.tax and parameter files
 THIRDPARTY=$PROTAXDIR/thirdparty  # Directory Path to thirdparty applications, e.g. usearch and krona
 
 # Locations for OUTPUT files of PROTAX and SINTAX
@@ -55,13 +55,13 @@ $THIRDPARTY/vsearch -sintax $INSEQ -db $MDIR/sintax${ITS}.udb -tabbedout $OUTSIN
 # SINTAX algorithm works similarly to the RDP classifier. However, there is no need for training.
 # The top taxonomy is identified by k-mer similarity
 
-# Changes query.sintax format and redirects result into query.sasintax, checking for each sequence if the tax result is found in taxonomy.ascii7
+# Changes query.sintax format (d: is 1, s: is 7) and redirects result into query.sasintax, checking for each sequence if the tax result is found in taxonomy.ascii7
 perl $PROTAX/sintax2sa.pl $MDIR/taxonomy.ascii7 $OUTSINTAX > $SIMFILE2
 
 grep '^>' $INSEQ | cut -c2- > $ODIR/query.ids  # Removes the > from the headers and returns it to query.ids
 
 # perl $PROTAX/testsample2init.pl {startnode} {input} > {output}
-perl $PROTAX/testsample2init.pl 1 $ODIR/query.ids > $ODIR/query1.logprob # grabs IDs and starnode from query.ids to create query.logprob. The next loop expands by making query{LEVEL}.logprobs
+perl $PROTAX/testsample2init.pl 1 $ODIR/query.ids > $ODIR/query1.logprob # grabs IDs and startnode from query.ids to create query.logprob. The next loop expands by making query{LEVEL}.logprobs
 
 # parent probs from previous level classification
 for LEVEL in 2 3 4 5 6 7 # for each level in taxonomy

@@ -1,21 +1,30 @@
-# This file actually consists of two snakefiles. One utilizes db_files_TU-NHM_TU-NHM, which is protax based on the database that PROTAX uses in its article.
-# This version can be found directly below this text. The other version utilized the data of Casper and Luuks MDDB database.
-# This version, utilizing db_files_TU-NHM_MDDB can be found at the bottom of this document. be sure to comment out one or the other.
+# This Snakefile consists of two workflows.
+# The first workflow utilizes db_files_TU-NHM_TU-NHM, which is database that PROTAX uses in its article.
+# The second workflow trains ProtaxA(?) version utilized the data of Casper and Luuks MDDB database.
+# This version, utilizing db_files_TU-NHM_MDDB can be found at the bottom of this document.
+# Make sure to comment out one or the other.
 
 rule all:
     input:
         'userdir/test.fasta',
+        'data/test_true.fasta',
         'db_files_TU-NHM/train.fasta',
-        'db_files_TU-NHM/sintaxits1train.fa',
-        'db_files_TU-NHM/sintaxits1.udb',
-        'db_files_TU-NHM/its1.udb',
+        # 'db_files_TU-NHM/sintaxits1train.fa',
+        # 'db_files_TU-NHM/sintaxits1.udb',
+        # 'db_files_TU-NHM/its1.udb',
         'userdir/krona.html',
-        'userdir/query2.nameprob'
+        'userdir/query2.nameprob',
+        'data/ProTaX_fungi_result.csv',
+        'data/ProTaX_confusion_matrix.pdf'
 
 rule split_sequences: # Splits training and test set for training USEARCH algorithm
     input:
         '../MDDB-phylogeny/results/thesis results/l0.2_s3_4_1500_o1.0_a0_constr_localpair/chunks/unaligned',
-        'model/Query_ID.test1.txt'
+        'model/Query_ID.test1.txt',
+        'model/Query_ID.test2.txt',
+        'model/Query_ID.test3.txt',
+        'scripts/test_split.py',
+        'scripts/transform_sequences.py'
     output:
         'userdir/test.fasta', # test set from excluded_IDs
         'db_files_TU-NHM/train.fasta' # reference sequences
@@ -23,28 +32,40 @@ rule split_sequences: # Splits training and test set for training USEARCH algori
         dependencies='requirements.txt'
     shell:
         """
-        python scripts/test_train_split.py --input "../MDDB-phylogeny/results/thesis results/l0.2_s3_4_1500_o1.0_a0_constr_localpair/chunks/unaligned" --excluded "model/Query_ID.test1.txt" --output "db_files_TU-NHM/train.fasta" --test "userdir/test.fasta"
+        start_time=$(date +%s) 
+        python scripts/test_split.py \
+            --input "../MDDB-phylogeny/results/thesis results/l0.2_s3_4_1500_o1.0_a0_constr_localpair/chunks/unaligned" \
+            --excluded1 "model/Query_ID.test1.txt" \
+            --output "db_files_TU-NHM/train.fasta" \
+            --test "userdir/test.fasta" \
+            --test_ratio 0.0
         python scripts/transform_sequences.py --input "db_files_TU-NHM/train.fasta" --output "db_files_TU-NHM/train.fasta" 
         python scripts/transform_sequences.py --input "userdir/test.fasta" --output "userdir/test.fasta"
-        """ # Last two lines change the output files so that they do not have enters in the sequences anymore.
-    # Change excluded IDs accordingly
+        end_time=$(date +%s)
+        runtime=$((end_time - start_time))
+        echo "Splitting sequences, runtime: $runtime seconds"
+        """ # Last two lines change the output files so that they do not have enters/spaces in the sequences anymore.
 
-rule get_sintax_data: # Splits training set for SINTAX algorithm
+rule get_true_test: # Splits training set for SINTAX algorithm
     input:
         '../MDDB-phylogeny/results/thesis results/l0.2_s3_4_1500_o1.0_a0_constr_localpair/chunks/unaligned',
-        'model/Query_ID.test1.txt' #Change to test or test3 here and in shell commandlines
+        'userdir/test.fasta',
+        'scripts/SINTAX_formatting.py',
+        'scripts/transform_sequences.py'
     output:
-        'db_files_TU-NHM/sintaxits1train.fa',
         'data/test_true.fasta'
     shell:
         """
-        python scripts/get_SINTAXdata_names.py \
+        start_time=$(date +%s) 
+        python scripts/SINTAX_formatting.py \
             --input "../MDDB-phylogeny/results/thesis results/l0.2_s3_4_1500_o1.0_a0_constr_localpair/chunks/unaligned" \
-            --excluded "model/Query_ID.test1.txt" \
-            --output "db_files_TU-NHM/sintaxits1train.fa" \
-            --test "data/test_true.fasta"
-        python scripts/transform_sequences.py --input "db_files_TU-NHM/sintaxits1train.fa" --output "db_files_TU-NHM/sintaxits1train.fa"
+            --test "userdir/test.fasta" \
+            --output "data/test_true.fasta" 
+            
         python scripts/transform_sequences.py --input "data/test_true.fasta" --output "data/test_true.fasta"
+        end_time=$(date +%s)
+        runtime=$((end_time - start_time))
+        echo "Transforming data to SINTAX format, runtime: $runtime seconds"
         """
 
         # """
@@ -55,35 +76,53 @@ rule get_sintax_data: # Splits training set for SINTAX algorithm
         #     --test "data/test_true.fasta"
         #     python scripts/transform_sequences.py --input "db_files_TU-NHM/sintaxits1train.fa" --output "db_files_TU-NHM/sintaxits1train.fa"
         #     python scripts/transform_sequences.py --input "data/test_true.fasta" --output "data/test_true.fasta"
-        # """
+        # """ ## Does not work as we use normal Its data ref databases, not the chunks.
 
 
 
-# rule run_protax_prep: # RUN THIS IF YOU WANT TO USE THE UDB FILES FROM https://github.com/TU-NHM/protax_fungi_plutof_pub/tree/master
-#     # NOTE 2: This takes very long! I recommend only running the ITS files you need, and removing this rule after downloading once. (its1, its2 or itsfull)
-#     # NOTE 3: As this project is focused on ITS1, only these lines are present.
-#     input:
-#         'db_files_TU-NHM/sintaxits1train.fa',
-#         'db_files_TU-NHM/its1.fa'
-#     output:
-#         'db_files_TU-NHM/its1.udb',
-#         'db_files_TU-NHM/sintaxits1.udb'
-#     shell:
-#         """
-#         wget https://github.com/torognes/vsearch/releases/download/v2.15.1/vsearch-2.15.1-linux-x86_64.tar.gz
-#         tar xzf vsearch-2.15.1-linux-x86_64.tar.gz
-#         rm vsearch-2.15.1-linux-x86_64.tar.gz
-#         wget https://files.plutof.ut.ee/public/orig/A9/11/A911815A6691B3F74EACA42A20605CEB680424F01553E65D1EF3A6767BBCA22B.zip
-#         unzip A911815A6691B3F74EACA42A20605CEB680424F01553E65D1EF3A6767BBCA22B.zip
-#         rm A911815A6691B3F74EACA42A20605CEB680424F01553E65D1EF3A6767BBCA22B.zip
-#         ./vsearch-2.15.1-linux-x86_64/bin/vsearch -makeudb_usearch 'db_files_TU-NHM/its1.fa' -output 'db_files_TU-NHM/its1.udb'
-#         ./vsearch-2.15.1-linux-x86_64/bin/vsearch -makeudb_usearch 'db_files_TU-NHM/sintaxits1train.fa' -output 'db_files_TU-NHM/sintaxits1.udb'
-#         """
+rule run_protax_prep: # RUN THIS IF YOU WANT TO USE THE UDB FILES FROM https://github.com/TU-NHM/protax_fungi_plutof_pub/tree/master
+    # NOTE 2: This takes very long! I recommend only running the ITS files you need, and removing this rule after downloading once. (its1, its2 or itsfull)
+    # NOTE 3: As this project is focused on ITS1, only these lines are present.
+    input:
+        'db_files_TU-NHM/sintaxits1train.fa',
+        'db_files_TU-NHM/its1.fa'
+    output:
+        'db_files_TU-NHM/its1.udb',
+        'db_files_TU-NHM/sintaxits1.udb'
+    shell:
+        #
+        #         wget https://github.com/torognes/vsearch/releases/download/v2.15.1/vsearch-2.15.1-linux-x86_64.tar.gz
+        #         tar xzf vsearch-2.15.1-linux-x86_64.tar.gz
+        #         rm vsearch-2.15.1-linux-x86_64.tar.gz
+        #         wget https://files.plutof.ut.ee/public/orig/A9/11/A911815A6691B3F74EACA42A20605CEB680424F01553E65D1EF3A6767BBCA22B.zip
+        #         unzip A911815A6691B3F74EACA42A20605CEB680424F01553E65D1EF3A6767BBCA22B.zip
+        #         rm A911815A6691B3F74EACA42A20605CEB680424F01553E65D1EF3A6767BBCA22B.zip
+        """
+        start_time=$(date +%s) 
+        ./vsearch-2.15.1-linux-x86_64/bin/vsearch -makeudb_usearch 'db_files_TU-NHM/its1.fa' -output 'db_files_TU-NHM/its1.udb'
+        ./vsearch-2.15.1-linux-x86_64/bin/vsearch -makeudb_usearch 'db_files_TU-NHM/sintaxits1train.fa' -output 'db_files_TU-NHM/sintaxits1.udb'
+        end_time=$(date +%s)
+        runtime=$((end_time - start_time))
+        echo "PRoTaX prep script runtime: $runtime seconds"
+        """
 
+
+rule change_fastq_format:
+    input:
+        'userdir/e1100000385_NBCLAB6362_S1_001LH-soil_NI033_D4_A01_NovaseqSoilMetabarcoding_88795-1056_TCGTGTTCGAAATATGCCAG_L001_R1_001_BHCWYTDRX2.filt.fastq',
+        'scripts/process_fastq.py'
+    output:
+        'userdir/test_test.fasta'
+    shell:
+        """
+        python scripts/process_fastq.py "userdir/e1100000385_NBCLAB6362_S1_001LH-soil_NI033_D4_A01_NovaseqSoilMetabarcoding_88795-1056_TCGTGTTCGAAATATGCCAG_L001_R1_001_BHCWYTDRX2.filt.fastq" "userdir/test_test.fasta" \
+         --percent 1
+        """
 
 rule run_protax: # Runs Protax, see run_protax.sh for more elaborate explanation.
     input:
-        'userdir/test.fasta',
+        # 'userdir/test.fasta',
+        'userdir/test_test.fasta',
         'db_files_TU-NHM/its1.udb',
         'db_files_TU-NHM/sintaxits1.udb',
         'db_files_TU-NHM/params.its1.level2',
@@ -91,10 +130,53 @@ rule run_protax: # Runs Protax, see run_protax.sh for more elaborate explanation
         'run_protax.sh'
     output:
         'userdir/krona.html',
-        'userdir/query2.nameprob'
+        'userdir/query5.nameprob',
+        'userdir/query6.nameprob'
     shell:
         """
-        ./run_protax_plutof.sh 01 its1 90
+        start_time=$(date +%s.%N)
+        ./run_protax_plutof.sh 03 itsfull 90
+        end_time=$(date +%s.%N)
+        runtime=$(echo "$end_time - $start_time" | bc)
+        printf "ProTaX Script runtime: %.3f seconds\\n" "$runtime"
+        """
+
+rule get_scores:
+    input:
+        'userdir/query5.nameprob',
+        'userdir/query6.nameprob',
+        'data/test_true.fasta',
+        'scripts/result_analysis.py'
+    output:
+        'data/ProTaX_fungi_result.csv'
+    shell:
+        """
+        start_time=$(date +%s) 
+        python scripts/result_analysis.py \
+            --true "data/test_true.fasta" \
+            --query5 "userdir/query5.nameprob" \
+            --query6 "userdir/query6.nameprob" \
+            --output "data/ProTaX_fungi_result.csv"
+        end_time=$(date +%s)
+        runtime=$((end_time - start_time))
+        echo "Formatting results, runtime: $runtime seconds"
+        """
+
+rule create_confusion_matrix:
+    input:
+        'data/ProTaX_fungi_result.csv',
+        'scripts/confusion_matrix_analysis.py'
+    output:
+        'data/ProTaX_confusion_matrix.pdf'
+    shell:
+        """
+        start_time=$(date +%s) 
+        python scripts/confusion_matrix_analysis.py \
+            --input data/ProTaX_fungi_result.csv \
+            --output data/ProTaX_confusion_matrix.pdf
+        end_time=$(date +%s)
+        runtime=$((end_time - start_time))
+        echo "Creating confusion matrix, runtime: $runtime seconds"
         """
 
 ########################################################################################################################
@@ -159,6 +241,15 @@ rule run_protax: # Runs Protax, see run_protax.sh for more elaborate explanation
 #         vsearch --makeudb_usearch db_files_MDDB/train.fasta --output db_files_MDDB/its1.udb
 #         """
 #
+# rule create_params:
+#     input:
+#         'TBA'
+#     output:
+#         'TBA'
+#     shell:
+#         """
+#         TBA
+#         """
 #
 # rule run_protax: # Runs Protax, see run_protax.sh for more elaborate explanation.
 #     input:
