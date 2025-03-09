@@ -58,6 +58,6 @@ export PATH=$PATH:/krona/bin
 cp "$pwd/indata/source_$run_id" "$user_dir/query.fa"
 
 # start protax analysis
-source run_protax_sample.sh "$run_id" "$its" "$percent"
+source run_protax.sh "$run_id" "$its" "$percent"
 
 echo "Run has finished"

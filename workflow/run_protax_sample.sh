@@ -11,12 +11,12 @@ ITS=$2
 PERCENT=$3
 
 ODIR="$PWD/userdir" # Output data directory
-INSEQ=$ODIR/test.fasta #test data fasta file
+INSEQ=$ODIR/test_sample.fasta #test data fasta file
 THRESHOLD=$PERCENT/100
 
 # Let User know if the query file is missing
 if [ ! -e $INSEQ ]; then
- echo "ERROR: test.fasta not in ODIR ($ODIR)"
+ echo "ERROR: test_sample.fasta not in ODIR ($ODIR)"
  return 1
 fi
 

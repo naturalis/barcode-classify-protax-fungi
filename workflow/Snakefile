@@ -35,10 +35,9 @@ rule split_sequences: # Splits training and test set for training USEARCH algori
         start_time=$(date +%s) 
         python scripts/test_split.py \
             --input "../MDDB-phylogeny/results/thesis results/l0.2_s3_4_1500_o1.0_a0_constr_localpair/chunks/unaligned" \
-            --excluded1 "model/Query_ID.test1.txt" \
             --output "db_files_TU-NHM/train.fasta" \
             --test "userdir/test.fasta" \
-            --test_ratio 0.0
+            --test_ratio 0.2
         python scripts/transform_sequences.py --input "db_files_TU-NHM/train.fasta" --output "db_files_TU-NHM/train.fasta" 
         python scripts/transform_sequences.py --input "userdir/test.fasta" --output "userdir/test.fasta"
         end_time=$(date +%s)
@@ -107,39 +106,27 @@ rule run_protax_prep: # RUN THIS IF YOU WANT TO USE THE UDB FILES FROM https://g
         """
 
 
-rule change_fastq_format:
-    input:
-        'userdir/e1100000385_NBCLAB6362_S1_001LH-soil_NI033_D4_A01_NovaseqSoilMetabarcoding_88795-1056_TCGTGTTCGAAATATGCCAG_L001_R1_001_BHCWYTDRX2.filt.fastq',
-        'scripts/process_fastq.py'
-    output:
-        'userdir/test_test.fasta'
-    shell:
-        """
-        python scripts/process_fastq.py "userdir/e1100000385_NBCLAB6362_S1_001LH-soil_NI033_D4_A01_NovaseqSoilMetabarcoding_88795-1056_TCGTGTTCGAAATATGCCAG_L001_R1_001_BHCWYTDRX2.filt.fastq" "userdir/test_test.fasta" \
-         --percent 1
-        """
-
-rule run_protax: # Runs Protax, see run_protax.sh for more elaborate explanation.
-    input:
-        # 'userdir/test.fasta',
-        'userdir/test_test.fasta',
-        'db_files_TU-NHM/its1.udb',
-        'db_files_TU-NHM/sintaxits1.udb',
-        'db_files_TU-NHM/params.its1.level2',
-        'db_files_TU-NHM/ref.tax2',
-        'run_protax.sh'
-    output:
-        'userdir/krona.html',
-        'userdir/query5.nameprob',
-        'userdir/query6.nameprob'
-    shell:
-        """
-        start_time=$(date +%s.%N)
-        ./run_protax_plutof.sh 03 itsfull 90
-        end_time=$(date +%s.%N)
-        runtime=$(echo "$end_time - $start_time" | bc)
-        printf "ProTaX Script runtime: %.3f seconds\\n" "$runtime"
-        """
+# rule run_protax: # Runs Protax, see run_protax.sh for more elaborate explanation.
+#     input:
+#         # 'userdir/test.fasta',
+#         'userdir/test.fasta',
+#         'db_files_TU-NHM/its1.udb',
+#         'db_files_TU-NHM/sintaxits1.udb',
+#         'db_files_TU-NHM/params.its1.level2',
+#         'db_files_TU-NHM/ref.tax2',
+#         'run_protax.sh'
+#     output:
+#         'userdir/krona.html',
+#         'userdir/query5.nameprob',
+#         'userdir/query6.nameprob'
+#     shell:
+#         """
+#         start_time=$(date +%s.%N)
+#         ./run_protax_plutof.sh 04 its1 90
+#         end_time=$(date +%s.%N)
+#         runtime=$(echo "$end_time - $start_time" | bc)
+#         printf "ProTaX Script runtime: %.3f seconds\\n" "$runtime"
+#         """
 
 rule get_scores:
     input:
@@ -177,6 +164,74 @@ rule create_confusion_matrix:
         end_time=$(date +%s)
         runtime=$((end_time - start_time))
         echo "Creating confusion matrix, runtime: $runtime seconds"
+        """
+
+
+#########################################################################################
+################################# ARISE SAMPLE TEST RUN #################################
+#########################################################################################
+rule test_sample:
+    input:
+        'userdir/test_sample.fasta',
+        'userdir/query5.nameprob',
+        'userdir/query6.nameprob',
+        'data/samples_classified.csv'
+
+
+rule change_fastq_format:
+    input:
+        'userdir/e1100000385_NBCLAB6362_S1_001LH-soil_NI033_D4_A01_NovaseqSoilMetabarcoding_88795-1056_TCGTGTTCGAAATATGCCAG_L001_R1_001_BHCWYTDRX2.filt.fastq',
+        'scripts/process_fastq.py'
+    output:
+        'userdir/test_sample.fasta'
+    shell:
+        """
+        python scripts/process_fastq.py "userdir/e1100000385_NBCLAB6362_S1_001LH-soil_NI033_D4_A01_NovaseqSoilMetabarcoding_88795-1056_TCGTGTTCGAAATATGCCAG_L001_R1_001_BHCWYTDRX2.filt.fastq" "userdir/test_sample.fasta" \
+         --percent 1
+        """
+
+
+rule run_protax_sample: # Runs Protax, see run_protax.sh for more elaborate explanation.
+    input:
+        # 'userdir/test.fasta',
+        'userdir/test_sample.fasta',
+        'db_files_TU-NHM/its1.udb',
+        'db_files_TU-NHM/sintaxits1.udb',
+        'db_files_TU-NHM/params.its1.level2',
+        'db_files_TU-NHM/ref.tax2',
+        'run_protax.sh'
+    output:
+        'userdir/krona.html',
+        'userdir/query5.nameprob',
+        'userdir/query6.nameprob'
+    shell:
+        """
+        start_time=$(date +%s.%N)
+        ./run_protax_plutof_sample.sh 02 itsfull 90
+        end_time=$(date +%s.%N)
+        runtime=$(echo "$end_time - $start_time" | bc)
+        printf "ProTaX Script runtime: %.3f seconds\\n" "$runtime"
+        """
+
+rule sample_analysis:
+    input:
+        '../MDDB-phylogeny/results/thesis results/l0.2_s3_4_1500_o1.0_a0_constr_localpair/chunks/unaligned',
+        'userdir/query4.nameprob',
+        'userdir/query5.nameprob',
+        'scripts/sample_classification_analysis.py'
+    output:
+        'data/samples_classified.csv'
+    shell:
+        """
+        start_time=$(date +%s) 
+        python scripts/sample_classification_analysis.py \
+            --directory '../MDDB-phylogeny/results/thesis results/l0.2_s3_4_1500_o1.0_a0_constr_localpair/chunks/unaligned' \
+            --query4 'userdir/query4.nameprob' \
+            --query5 'userdir/query5.nameprob' \
+            --output 'data/samples_classified.csv' 
+        end_time=$(date +%s)
+        runtime=$((end_time - start_time))
+        echo "Analysing sample classifications, runtime: $runtime seconds"
         """
 
 ########################################################################################################################
